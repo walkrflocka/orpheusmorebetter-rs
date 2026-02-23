@@ -1,10 +1,14 @@
 use std::collections::HashMap;
 
 use chrono::{DateTime, TimeDelta, Utc};
+use config::builder;
 use futures::executor::block_on;
+use http::header;
 use reqwest::Method;
 use reqwest::{Client, ClientBuilder, Url};
 use serde::Serialize;
+
+use crate::extensions::hash_map::{self, HashMapSetOps};
 
 struct WhatAPI<'a> {
     // user input fields
@@ -31,11 +35,15 @@ impl WhatAPI<'_> {
         let resolved_endpoint: Url =
             parse_url_with_fallback(endpoint, String::from("https://orpheus.network/"));
 
+        let mut headers = header::HeaderMap::new();
+        headers.insert("User-Agent", "orpheusmorebetter".parse().unwrap());
+
         // when you auth to orpheus you get a cookie back that you need to use
         // to auth for future requests - unfortunately it don't work with basic
         // HTTP auth :(
         let client = ClientBuilder::new()
             .cookie_store(true)
+            .default_headers(headers)
             .build()
             .expect("API client construction failed");
 
@@ -75,10 +83,32 @@ impl WhatAPI<'_> {
     async fn request_ajax(
         &self,
         action: &str,
-        data: HashMap<&str, &str>,
         method: Method,
-        params: HashMap<&str, &str>,
-    ) {
+        body: Option<HashMap<&str, &str>>,
+        params: Option<HashMap<&str, &str>>,
+    ) -> Result<reqwest::Response, reqwest::Error> {
+        let ajax_url = self
+            .endpoint
+            .join("ajax.php")
+            .expect("Unable to resolve Ajax endpoint");
+
+        let mut builder = self.api_client.request(method, ajax_url);
+
+        if let Some(body_parsed) = body {
+            builder = builder.json(&body_parsed)
+        }
+
+        builder = builder.query(&[
+            ("authkey", self.authkey.clone()),
+            ("action", Some(String::from(action))),
+        ]);
+        if let Some(params_parsed) = params {
+            builder = builder.query(&params_parsed)
+        }
+
+        let res = builder.send().await?.error_for_status();
+
+        return res;
     }
 
     async fn get_keys(&self) {}

@@ -1,6 +1,6 @@
 [package]
 name = "orpheusmorebetter-rs"
-version = "1.0.0-alpha"
+version = "0.1.0-alpha"
 edition = "2024"
 description = "An auto-transcoding tool for Orpheus.network"
 
@@ -10,7 +10,8 @@ chrono = "0.4.43"
 config = "0.15.19"
 futures = "0.3.32"
 http = "1.4.0"
-reqwest = { version = "0.13.2", features = ["json", "cookies"] }
+reqwest = { version = "0.13.2", features = ["json", "cookies", "query"] }
+reqwest-middleware = "0.5.1"
 serde = { version = "1.0.228", features = ["derive"] }
 
 [lints.rust]
