@@ -5,6 +5,7 @@ edition = "2024"
 description = "An auto-transcoding tool for Orpheus.network"
 
 [dependencies]
+anyhow = "1.0.102"
 chrono = "0.4.43"
 # clap = { version = "4.5.59", features = ["derive"] }
 config = "0.15.19"

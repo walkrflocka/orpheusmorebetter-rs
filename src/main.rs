@@ -1,6 +1,5 @@
-mod ajax;
 mod app_config;
-mod extensions;
+mod sessions;
 mod whatapi;
 
 use app_config::{AppConfig, Format, LosslessMediaSources};

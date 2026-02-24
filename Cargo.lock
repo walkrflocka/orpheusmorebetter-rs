@@ -989,6 +989,7 @@ dependencies = [
 name = "orpheusmorebetter-rs"
 version = "0.1.0-alpha"
 dependencies = [
+ "anyhow",
  "chrono",
  "config",
  "futures",
