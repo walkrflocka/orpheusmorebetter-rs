@@ -4,8 +4,10 @@ mod whatapi;
 
 use app_config::{AppConfig, Format, LosslessMediaSources};
 
+use crate::whatapi::WhatAPI;
+
 fn main() {
-    let conf = AppConfig {
+    let _conf = AppConfig {
         username: "foo",
         password: "bar",
         data_dir: "~/.omb/data_dir",
@@ -15,5 +17,12 @@ fn main() {
         media: vec![LosslessMediaSources::CD],
     };
 
-    println!("{:?}", conf)
+    let _api = WhatAPI::new(
+        "PUT HERE".to_string(),
+        "EDIT".to_string(),
+        Some("https://orpheus.network/".to_string()),
+        None,
+    );
+
+    return ();
 }

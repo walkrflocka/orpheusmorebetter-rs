@@ -1,5 +1,5 @@
 use futures::executor::block_on;
-use http::{Method, header, method};
+use http::{Method, header};
 use reqwest::{Client, ClientBuilder, RequestBuilder, Url};
 use serde::{Deserialize, Serialize};
 
@@ -30,6 +30,7 @@ impl WhatAPISession {
         let login_fut =
             WhatAPISession::log_in(&client, &username, &password, &endpoint, totp.as_deref());
         block_on(login_fut).expect("Login to Orpheus failed.");
+
         let keys_fut = WhatAPISession::get_keys(&client, &endpoint);
         let keys =
             block_on(keys_fut).expect("Failed to parse auth/passkeys from Orpheus response.");
@@ -62,6 +63,10 @@ impl WhatAPISession {
             mfa: mfa,
             login: "Log in",
         };
+
+        // when you auth to orpheus you get a cookie back that you need to use
+        // to auth for future requests - unfortunately it don't work with basic
+        // HTTP auth :(
 
         let res = client.post(endpoint.clone()).json(&body).send().await?;
 
