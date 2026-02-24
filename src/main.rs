@@ -6,7 +6,9 @@ use app_config::{AppConfig, Format, LosslessMediaSources};
 
 use crate::whatapi::WhatAPI;
 
-fn main() {
+// single thread async
+#[tokio::main(flavor = "current_thread")]
+async fn main() {
     let _conf = AppConfig {
         username: "foo",
         password: "bar",
@@ -17,12 +19,17 @@ fn main() {
         media: vec![LosslessMediaSources::CD],
     };
 
-    let _api = WhatAPI::new(
-        "PUT HERE".to_string(),
-        "EDIT".to_string(),
+    let api = WhatAPI::new(
+        "---".to_string(),
+        "---".to_string(),
         Some("https://orpheus.network/".to_string()),
         None,
-    );
+    )
+    .await
+    .expect("Init failed");
+
+    println!("{:?}", api);
+    println!("{:?}", api.api_session);
 
     return ();
 }

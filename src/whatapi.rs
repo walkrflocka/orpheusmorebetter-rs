@@ -3,36 +3,36 @@ use reqwest::Url;
 
 use crate::sessions::whatapi::WhatAPISession;
 
+#[derive(Debug)]
 pub struct WhatAPI {
     // user input fields
 
     // internal fields
     last_request: DateTime<Utc>,
-    api_session: WhatAPISession,
+    pub api_session: WhatAPISession,
 }
 
 impl WhatAPI {
     const MIN_SEC_BETWEEN_REQUEST: TimeDelta =
         TimeDelta::try_seconds(5).expect("Failed to construct TimeDelta in WhatAPI");
 
-    pub fn new(
+    pub async fn new(
         username: String,
         password: String,
         endpoint: Option<String>,
         totp: Option<String>,
-    ) -> Self {
+    ) -> anyhow::Result<Self> {
         // trailing slash IMPORTANT
         let resolved_endpoint: Url =
             parse_url_with_fallback(endpoint, String::from("https://orpheus.network/"));
 
-        let client = WhatAPISession::new(username, password, totp, resolved_endpoint);
+        let api_session =
+            WhatAPISession::new(username, password, totp, resolved_endpoint).await?;
 
-        let out: WhatAPI = WhatAPI {
+        Ok(WhatAPI {
             last_request: Utc::now(),
-            api_session: client,
-        };
-
-        return out;
+            api_session,
+        })
     }
 }
 

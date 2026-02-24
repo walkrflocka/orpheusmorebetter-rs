@@ -122,22 +122,17 @@ Intended future modules (mirror Python structure):
 
 ## 9. Current State & Known Issues
 
-Project is **pre-alpha and does not compile**. Known bugs:
+Project compiles and logs in. Outstanding tasks:
 
-| Location | Issue |
-|----------|-------|
-| `ajax.rs:29` | Undefined `url` — should be `self.url` |
-| `ajax.rs:33` | `post()` body is missing |
-| `whatapi_middleware.rs:27` | Incomplete `req.query_mut()` expression |
-| `whatapi.rs:53` | `unwrap()` on optional TOTP panics if absent |
-| `main.rs` | Hardcoded placeholder credentials, no CLI arg parsing yet |
-| `whatapi.rs` `get_keys()` | Empty stub |
+- **Find a way to check for the presence of the login cookie** — `Set-Cookie` is not visible on the final response because reqwest follows the post-login 302 redirect internally and stores the cookie in its jar. Need to find a way to inspect the jar or intercept the redirect response directly.
+- **Implement a CLI and flags** - Implement all flags from the Python function. We need to hit feature parity.
+- **Implement a cache** - Ideally SQLite.
+- **Implement a config system** - TOML or YAML. Depends on which is better.
 
 ## 10. Coding Conventions
 
 - **Edition**: Rust 2024
 - **Safety**: `unsafe_code = "forbid"` — no unsafe Rust
-- **Async**: `tokio`; currently uses `block_on`, add tokio as explicit dep when needed
 - **Errors**: `thiserror` for error type definitions; `anyhow` for application-level propagation
 - **No panics in library code**: no `unwrap()`/`expect()` in non-test paths; use `?` and proper error types
 - **Ownership**: current code uses `&'a str` lifetimes in structs — prefer `String` where lifetimes cause friction (config fields, API responses)

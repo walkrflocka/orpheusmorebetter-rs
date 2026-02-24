@@ -1,8 +1,11 @@
-use futures::executor::block_on;
-use http::{Method, header};
-use reqwest::{Client, ClientBuilder, RequestBuilder, Url};
+use http::Method;
+use reqwest::{
+    Client, ClientBuilder, RequestBuilder, Url,
+    header::{HeaderMap, SET_COOKIE},
+};
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug)]
 pub struct WhatAPISession {
     username: String,
     password: String,
@@ -11,14 +14,19 @@ pub struct WhatAPISession {
 
     pub client: Client,
 
-    pub user_id: String,
+    pub user_id: u32,
     authkey: String,
     passkey: String,
 }
 
 impl WhatAPISession {
-    pub fn new(username: String, password: String, totp: Option<String>, endpoint: Url) -> Self {
-        let mut headers = header::HeaderMap::new();
+    pub async fn new(
+        username: String,
+        password: String,
+        totp: Option<String>,
+        endpoint: Url,
+    ) -> anyhow::Result<Self> {
+        let mut headers = HeaderMap::new();
         headers.insert("User-Agent", "orpheusmorebetter".parse().unwrap());
 
         let client = ClientBuilder::new()
@@ -27,26 +35,21 @@ impl WhatAPISession {
             .build()
             .expect("API client construction failed");
 
-        let login_fut =
-            WhatAPISession::log_in(&client, &username, &password, &endpoint, totp.as_deref());
-        block_on(login_fut).expect("Login to Orpheus failed.");
+        WhatAPISession::log_in(&client, &username, &password, &endpoint, totp.as_deref()).await?;
 
-        let keys_fut = WhatAPISession::get_keys(&client, &endpoint);
-        let keys =
-            block_on(keys_fut).expect("Failed to parse auth/passkeys from Orpheus response.");
+        let keys = WhatAPISession::get_keys(&client, &endpoint).await?;
+        println!("Logged into Orpheus.");
 
-        let out = WhatAPISession {
-            username: username,
-            password: password,
-            totp: totp,
-            endpoint: endpoint,
-            client: client,
+        Ok(WhatAPISession {
+            username,
+            password,
+            totp,
+            endpoint,
+            client,
             user_id: keys.id,
             passkey: keys.passkey,
             authkey: keys.authkey,
-        };
-
-        return out;
+        })
     }
 
     pub async fn log_in(
@@ -68,7 +71,15 @@ impl WhatAPISession {
         // to auth for future requests - unfortunately it don't work with basic
         // HTTP auth :(
 
-        let res = client.post(endpoint.clone()).json(&body).send().await?;
+        let res = client
+            .post(
+                endpoint
+                    .join("login.php")
+                    .expect("Failed to construct login endpoint"),
+            )
+            .form(&body)
+            .send()
+            .await?;
 
         let status = res.status();
         if status.is_client_error() || status.is_server_error() {
@@ -81,7 +92,7 @@ impl WhatAPISession {
         return Ok(());
     }
 
-    async fn get_keys(client: &Client, endpoint: &Url) -> Result<IndexBody, anyhow::Error> {
+    async fn get_keys(client: &Client, endpoint: &Url) -> Result<IndexKeys, anyhow::Error> {
         let url = endpoint
             .join("ajax.php")
             .expect("Unable to construct Ajax endpoint");
@@ -96,9 +107,14 @@ impl WhatAPISession {
             )
         }
 
-        let keys = res.json::<IndexBody>().await?;
+        let res_body = res.json::<IndexBody>().await;
 
-        return Ok(keys);
+        match res_body {
+            Ok(r) => return Ok(r.response),
+            Err(_) => panic!(
+                "Could not retrieve user id/keys from Orpheus. Login most likely failed. Check your user/pass?"
+            ),
+        }
     }
 
     pub fn new_http_request(&self, method: Method) -> RequestBuilder {
@@ -108,7 +124,7 @@ impl WhatAPISession {
     pub fn new_ajax_request(&self, method: Method, action: String) -> RequestBuilder {
         return self
             .new_http_request(method)
-            .query(&[("auth", &self.authkey), ("action", &action)]);
+            .query(&[("authkey", &self.authkey), ("action", &action)]);
     }
 }
 
@@ -116,13 +132,20 @@ impl WhatAPISession {
 struct LoginBody<'a> {
     username: &'a str,
     password: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
     mfa: Option<&'a str>,
-    login: &'static str, // HAS TO be "Log in"
+    login: &'a str,
 }
 
 #[derive(Deserialize)]
 struct IndexBody {
-    id: String,
+    status: String,
+    response: IndexKeys,
+}
+
+#[derive(Deserialize)]
+struct IndexKeys {
+    id: u32,
     authkey: String,
     passkey: String,
 }
